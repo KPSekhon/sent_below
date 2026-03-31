@@ -4,7 +4,7 @@ A real-time top-down dungeon crawler with integrated ML/AI systems, built with P
 
 ## Demo Video
 
-[Watch the gameplay demo](demo.mp4)
+[Watch the gameplay demo](https://youtu.be/YA07oDuJHRw)
 
 ## ML/AI Architecture
 
