@@ -1,4 +1,4 @@
-# Sent Below
+# sent below
 
 A real-time top-down dungeon crawler with integrated ML/AI systems, built with Python, Pygame, and PyTorch. Trained models are stored in **Amazon S3** with version metadata tracked in **DynamoDB**, and served via a containerised **FastAPI** inference API.
 
