@@ -2,7 +2,9 @@
 
 A real-time top-down dungeon crawler with integrated ML/AI systems, built with Python, Pygame, and PyTorch. Trained models are stored in **Amazon S3** with version metadata tracked in **DynamoDB**, and served via a containerised **FastAPI** inference API.
 
-https://github.com/user-attachments/assets/demo.mp4
+## Demo Video
+
+[Watch the gameplay demo](demo.mp4)
 
 ## ML/AI Architecture
 
@@ -140,7 +142,6 @@ sent-below/
 ├── requirements.txt            # Python dependencies (pygame, torch, boto3, fastapi)
 ├── Dockerfile                  # Multi-stage build (train / serve / game)
 ├── docker-compose.yml          # Orchestration with AWS env vars
-├── record_demo.py              # Automated demo video recorder
 │
 ├── game/
 │   ├── engine.py               # Game loop, state machine, wall-clamp logic
