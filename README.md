@@ -142,7 +142,6 @@ sent-below/
 ├── requirements.txt            # Python dependencies (pygame, torch, boto3, fastapi)
 ├── Dockerfile                  # Multi-stage build (train / serve / game)
 ├── docker-compose.yml          # Orchestration with AWS env vars
-├── record_demo.py              # Automated demo video recorder
 │
 ├── game/
 │   ├── engine.py               # Game loop, state machine, wall-clamp logic
