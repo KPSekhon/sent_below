@@ -1,0 +1,46 @@
+{
+    "family": "sent-below-ml-serve",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "512",
+    "memory": "1024",
+    "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/sentBelowTaskRole",
+    "containerDefinitions": [
+        {
+            "name": "ml-serve",
+            "image": "ACCOUNT_ID.dkr.ecr.ca-central-1.amazonaws.com/sent-below:serve-latest",
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 8000,
+                    "protocol": "tcp"
+                }
+            ],
+            "environment": [
+                { "name": "DEVICE", "value": "cpu" },
+                { "name": "MODEL_DIR", "value": "/app/models" },
+                { "name": "AWS_REGION", "value": "ca-central-1" },
+                { "name": "MODEL_BUCKET", "value": "adaptive-dungeon-ai-models" },
+                { "name": "MODEL_S3_PREFIX", "value": "models/enemy-brain/latest" },
+                { "name": "MODEL_REGISTRY_TABLE", "value": "AdaptiveDungeonModelRegistry" },
+                { "name": "LOG_LEVEL", "value": "info" }
+            ],
+            "healthCheck": {
+                "command": ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 15
+            },
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/sent-below-ml",
+                    "awslogs-region": "ca-central-1",
+                    "awslogs-stream-prefix": "serve"
+                }
+            }
+        }
+    ]
+}
