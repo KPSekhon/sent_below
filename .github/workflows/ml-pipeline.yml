@@ -43,7 +43,8 @@ on:
 
 env:
   PYTHON_VERSION: '3.12'
-  TORCH_VERSION: '2.2.0'
+  TORCH_VERSION: '2.4.0'
+  NUMPY_VERSION: '<2'
 
 jobs:
   # -------------------------------------------------------------------------
@@ -63,8 +64,9 @@ jobs:
 
       - name: Install dependencies
         run: |
+          pip install "numpy${{ env.NUMPY_VERSION }}"
           pip install torch==${{ env.TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-          pip install numpy pygame-ce pytest
+          pip install pygame-ce pytest
 
       - name: Test Enemy AI (DQN)
         run: python ai/enemy_ai.py
@@ -112,8 +114,9 @@ jobs:
 
       - name: Install dependencies
         run: |
+          pip install "numpy${{ env.NUMPY_VERSION }}"
           pip install torch==${{ env.TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-          pip install numpy pygame-ce
+          pip install pygame-ce
 
       - name: Run benchmark
         run: python -m training.benchmark --iterations 500 --output reports/benchmark.json
@@ -156,8 +159,9 @@ jobs:
 
       - name: Install dependencies
         run: |
+          pip install "numpy${{ env.NUMPY_VERSION }}"
           pip install torch==${{ env.TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-          pip install numpy pygame-ce tensorboard
+          pip install pygame-ce tensorboard
 
       - name: Run training pipeline
         run: |
