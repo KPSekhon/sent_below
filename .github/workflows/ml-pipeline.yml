@@ -24,12 +24,16 @@ on:
       - 'training/**'
       - 'serving/**'
       - 'config.py'
+      - 'requirements.txt'
+      - '.github/workflows/**'
   pull_request:
     branches: [main]
     paths:
       - 'ai/**'
       - 'training/**'
       - 'serving/**'
+      - 'requirements.txt'
+      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       epochs:
