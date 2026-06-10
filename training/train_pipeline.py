@@ -335,12 +335,16 @@ class TrainingPipeline:
                 self.writer.add_scalar("training/buffer_size",
                                        len(self.brain.replay_buffer), epoch)
 
-                # Log Q-value distribution every 10 epochs
+                # Log Q-value distribution every 10 epochs.
+                # Use eval() to bypass BatchNorm's batch-size>1 requirement,
+                # and sample a batch of states for a richer histogram.
                 if epoch % 10 == 0:
-                    sample_state = torch.randn(1, STATE_DIM, device=self.device)
+                    sample_states = torch.randn(64, STATE_DIM, device=self.device)
+                    self.brain.policy_net.eval()
                     with torch.no_grad():
-                        q_vals = self.brain.policy_net(sample_state).squeeze()
-                    self.writer.add_histogram("q_values", q_vals, epoch)
+                        q_vals = self.brain.policy_net(sample_states)
+                    self.brain.policy_net.train()
+                    self.writer.add_histogram("q_values", q_vals.flatten(), epoch)
 
             # Console output
             if epoch % 10 == 0 or epoch == 1:
@@ -412,18 +416,23 @@ class TrainingPipeline:
             onnx_path = os.path.join(self.model_dir, "enemy_brain.onnx")
             dummy_input = torch.randn(1, STATE_DIM, device=self.device)
 
-            torch.onnx.export(
-                self.brain.policy_net,
-                dummy_input,
-                onnx_path,
-                input_names=["state"],
-                output_names=["q_values"],
-                dynamic_axes={
-                    "state": {0: "batch_size"},
-                    "q_values": {0: "batch_size"},
-                },
-                opset_version=17,
-            )
+            # Eval mode: BatchNorm uses running stats (needed for batch-1 trace)
+            self.brain.policy_net.eval()
+            try:
+                torch.onnx.export(
+                    self.brain.policy_net,
+                    dummy_input,
+                    onnx_path,
+                    input_names=["state"],
+                    output_names=["q_values"],
+                    dynamic_axes={
+                        "state": {0: "batch_size"},
+                        "q_values": {0: "batch_size"},
+                    },
+                    opset_version=17,
+                )
+            finally:
+                self.brain.policy_net.train()
             print(f"[train] ONNX model exported to {onnx_path}")
         except Exception as e:
             print(f"[train] ONNX export failed (non-critical): {e}")
