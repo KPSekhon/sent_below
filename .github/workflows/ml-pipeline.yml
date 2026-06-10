@@ -60,13 +60,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
-          pip install "numpy${{ env.NUMPY_VERSION }}"
-          pip install torch==${{ env.TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-          pip install pygame-ce pytest
+          # Constraints file forces pip resolver to keep numpy<2 across ALL installs
+          echo "numpy<2" > /tmp/constraints.txt
+          pip install -c /tmp/constraints.txt "numpy<2"
+          pip install -c /tmp/constraints.txt torch==${{ env.TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+          pip install -c /tmp/constraints.txt pygame-ce pytest
+
+      - name: Verify numpy < 2
+        run: |
+          python -c "import numpy; v = numpy.__version__; print(f'numpy {v}'); assert v.startswith('1.'), f'Expected numpy 1.x, got {v}'"
 
       - name: Test Enemy AI (DQN)
         run: python ai/enemy_ai.py
@@ -110,13 +115,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
-          pip install "numpy${{ env.NUMPY_VERSION }}"
-          pip install torch==${{ env.TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-          pip install pygame-ce
+          echo "numpy<2" > /tmp/constraints.txt
+          pip install -c /tmp/constraints.txt "numpy<2"
+          pip install -c /tmp/constraints.txt torch==${{ env.TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+          pip install -c /tmp/constraints.txt pygame-ce
 
       - name: Run benchmark
         run: python -m training.benchmark --iterations 500 --output reports/benchmark.json
@@ -155,13 +160,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
-          pip install "numpy${{ env.NUMPY_VERSION }}"
-          pip install torch==${{ env.TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
-          pip install pygame-ce tensorboard
+          echo "numpy<2" > /tmp/constraints.txt
+          pip install -c /tmp/constraints.txt "numpy<2"
+          pip install -c /tmp/constraints.txt torch==${{ env.TORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+          pip install -c /tmp/constraints.txt pygame-ce tensorboard
 
       - name: Run training pipeline
         run: |
