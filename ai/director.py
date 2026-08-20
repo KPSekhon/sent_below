@@ -1001,11 +1001,14 @@ class AIDirector:
             Dictionary with difficulty modifier, performance score, and
             recent history entries.
         """
+        # Most recent DDA prediction, if the adjuster has run at least once.
+        last = self.difficulty.history[-1] if self.difficulty.history else {}
+
         return {
             "difficulty_modifier": self.difficulty.difficulty_modifier,
             "difficulty_mod": self.difficulty.difficulty_modifier,
-            "predicted_survival": getattr(self.difficulty, '_last_survival', 0.6),
-            "predicted_enjoyment": getattr(self.difficulty, '_last_enjoyment', 0.5),
+            "predicted_survival": last.get("predicted_survival", 0.6),
+            "predicted_enjoyment": last.get("predicted_enjoyment", 0.5),
             "performance_score": self.difficulty.tracker.get_performance_score(),
             "total_kills": self.difficulty.tracker.total_kills,
             "total_deaths": self.difficulty.tracker.total_deaths,

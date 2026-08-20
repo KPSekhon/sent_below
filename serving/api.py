@@ -112,10 +112,20 @@ async def lifespan(app):
     else:
         print("[serve] No enemy checkpoint found, using fresh weights")
 
+    # Two artefact shapes exist: director.pt (full director state, written by
+    # save_state) and player_model.pt (a bare state_dict, which is what the
+    # training pipeline actually writes). Prefer the former, fall back to the
+    # latter -- otherwise the trained player model never reaches serving.
     director_checkpoint = os.path.join(model_dir, "director.pt")
+    player_checkpoint = os.path.join(model_dir, "player_model.pt")
     if os.path.exists(director_checkpoint):
         _ai_director.load_state(director_checkpoint)
         print(f"[serve] Loaded director from {director_checkpoint}")
+    elif os.path.exists(player_checkpoint):
+        state_dict = torch.load(player_checkpoint, map_location=DEVICE,
+                                weights_only=True)
+        _ai_director.difficulty.model.load_state_dict(state_dict)
+        print(f"[serve] Loaded player model from {player_checkpoint}")
     else:
         print("[serve] No director checkpoint found, using fresh weights")
 
@@ -263,11 +273,17 @@ async def predict_enemy_action(state: EnemyState):
     t0 = time.perf_counter()
     state_vec = state.to_array()
 
-    # Get Q-values for diagnostics
+    # Get Q-values for diagnostics.
+    # eval() so BatchNorm uses running stats instead of batch stats --
+    # a single-request batch of 1 cannot compute a batch variance.
     state_tensor = torch.tensor(state_vec, dtype=torch.float32,
                                 device=_enemy_brain.device).unsqueeze(0)
-    with torch.no_grad():
-        q_values = _enemy_brain.policy_net(state_tensor).squeeze(0).cpu().numpy()
+    _enemy_brain.policy_net.eval()
+    try:
+        with torch.no_grad():
+            q_values = _enemy_brain.policy_net(state_tensor).squeeze(0).cpu().numpy()
+    finally:
+        _enemy_brain.policy_net.train()
 
     action = _enemy_brain.decide_action(state_vec, state.behavior_type)
     elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -325,15 +341,22 @@ async def predict_difficulty(stats: PlayerStats):
         "clear_time_ratio": stats.clear_time_ratio,
     }
 
-    _ai_director.update(player_dict, stats.floor, 0.0, 0.016)
+    # Call the adjuster directly rather than AIDirector.update(): the director
+    # is interval-gated for the game loop (one DDA tick per 5s of play), which
+    # would make a single HTTP request a no-op and return stale defaults.
+    # A request here means "score this state now".
+    player_dict["performance_score"] = (
+        _ai_director.difficulty.tracker.get_performance_score()
+    )
+    _ai_director.difficulty.update(player_dict, stats.floor, 0.016)
     director_stats = _ai_director.get_stats()
 
     elapsed_ms = (time.perf_counter() - t0) * 1000
 
     return DifficultyResponse(
-        difficulty_modifier=director_stats.get("difficulty_modifier", 1.0),
-        predicted_survival=director_stats.get("predicted_survival", 0.6),
-        predicted_enjoyment=director_stats.get("predicted_enjoyment", 0.5),
+        difficulty_modifier=director_stats["difficulty_modifier"],
+        predicted_survival=director_stats["predicted_survival"],
+        predicted_enjoyment=director_stats["predicted_enjoyment"],
         inference_ms=round(elapsed_ms, 3),
     )
 
