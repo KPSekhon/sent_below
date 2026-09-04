@@ -11,7 +11,11 @@ A real-time top-down dungeon crawler with integrated ML/AI systems, built with P
 ### Dueling DQN Enemy AI with Self-Attention
 Enemies make decisions through a **Dueling DQN** that decomposes Q-values into a value stream and per-action advantage stream. A learned **self-attention gate** dynamically re-weights the 10-dimensional state vector (HP ratios, distance, combat readiness, behaviour type flags) so the network attends to the features that matter most in each situation. Training uses experience replay, epsilon-greedy exploration, target-network soft updates, batch normalisation, and cosine LR scheduling.
 
-`ai/enemy_ai.py`
+A single `EnemyBrain` is shared by every enemy on a floor, so their experience pools into one replay buffer and they learn from each other's fights. Behavioural differences come from the archetype flags in the state vector rather than from separate models.
+
+**Offline training, online adaptation.** The game warm-starts from `models/enemy_brain.pt` when it exists and clamps exploration to `WARM_START_EPSILON`, so a session begins from a generally competent policy and then adapts to the individual player. Without the clamp, the saved exploration rate would be high enough that enemies largely ignored the weights they had just loaded. With no checkpoint present it falls back to random initialisation. The game loop scores transitions with `EnemyBrain.compute_reward` — the same function the offline simulator trains against — so both paths optimise the same objective.
+
+`ai/enemy_ai.py` | `game/engine.py`
 
 ### Dynamic Difficulty Adjustment (DDA)
 A neural **player model** (10 -> 32 -> 16 -> 2) predicts survival probability and enjoyment from rolling performance metrics. A PID-style controller adjusts enemy scaling in real time to keep the player in the flow zone (~60% survival target).
@@ -99,10 +103,18 @@ docker compose up tensorboard    # Launch TensorBoard dashboard
 
 GitHub Actions workflow (`.github/workflows/ml-pipeline.yml`) runs on every push to `main` that touches `ai/`, `training/`, or `serving/`:
 
-1. **Test** - Import checks + module self-tests
+1. **Test** - Module self-tests + contract tests across the training/serving seam
 2. **Benchmark** - Latency/throughput profiling with regression gate (<50% frame budget)
 3. **Train** - Full training pipeline with artefact upload
 4. **Docker** - Build and cache serve + train images
+
+## Tests
+
+```bash
+pytest tests/ -v
+```
+
+`tests/test_artifact_contract.py` covers the boundary between what training writes and what serving loads. They assert that the weights coming back out are the weights that went in, rather than that loading did not raise — a mismatch between the two sides previously caused serving to fall back to randomly initialised weights with no error at all. They also cover batch-of-one inference (batch normalisation cannot compute a variance over a single sample) and check that the difficulty prediction responds to its input, since returning plausible constants is what hid the original defect.
 
 ## Gameplay
 
@@ -171,6 +183,9 @@ sent-below/
 │
 ├── notebooks/
 │   └── ml_technical_demo.ipynb # Interactive ML walkthrough (7 sections)
+│
+├── tests/
+│   └── test_artifact_contract.py  # Training -> serving artefact contract
 │
 └── .github/workflows/
     └── ml-pipeline.yml         # CI/CD: test -> benchmark -> train -> docker
