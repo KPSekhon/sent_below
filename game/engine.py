@@ -1,5 +1,6 @@
 import pygame
 import sys
+import os
 import math
 import random
 from config import SCREEN_W, SCREEN_H, FPS, TILE_SIZE, PLAYER_CLASSES, ENEMY_DATA, FLOOR_EXIT_TYPE
@@ -10,6 +11,40 @@ from game.combat import Projectile, DamageNumber, generate_loot, generate_enemy_
 from game.renderer import Renderer
 from ai.enemy_ai import EnemyBrain
 from ai.director import AIDirector
+
+
+# Exploration rate to drop to when we start from a trained checkpoint.
+# The saved epsilon is whatever training ended on, which is still high enough
+# that the enemies would mostly ignore the weights we just loaded. Warm-started
+# enemies should be competent first and adapt second.
+WARM_START_EPSILON = 0.15
+
+TRAINED_CHECKPOINT = os.path.join("models", "enemy_brain.pt")
+
+
+def _build_enemy_brain():
+    """Create the shared EnemyBrain, warm-starting from the trained checkpoint.
+
+    The offline pipeline trains against a simulator and writes a checkpoint;
+    the game picks it up here so a session starts from a generally competent
+    policy and then keeps adapting to this particular player. Falls back to
+    random weights if no checkpoint exists.
+    """
+    brain = EnemyBrain()
+
+    if not os.path.exists(TRAINED_CHECKPOINT):
+        print("[ai] No trained checkpoint found, starting from random weights")
+        return brain
+
+    try:
+        brain.load_model(TRAINED_CHECKPOINT)
+    except Exception as e:
+        print(f"[ai] Could not load {TRAINED_CHECKPOINT} ({e}) — using random weights")
+        return EnemyBrain()
+
+    brain.epsilon = min(brain.epsilon, WARM_START_EPSILON)
+    print(f"[ai] Warm-started from {TRAINED_CHECKPOINT} (epsilon={brain.epsilon:.2f})")
+    return brain
 
 
 def _nearest_walkable(x, y, dungeon, search_radius=5):
@@ -66,7 +101,7 @@ class GameEngine:
         self.floor_start_time = 0
 
         # ML systems
-        self.enemy_brain = EnemyBrain()
+        self.enemy_brain = _build_enemy_brain()
         self.ai_director = AIDirector()
 
         # Notifications
@@ -227,7 +262,7 @@ class GameEngine:
         self.game_time = 0
         self.notifications = []
         self.ai_director = AIDirector()
-        self.enemy_brain = EnemyBrain()
+        self.enemy_brain = _build_enemy_brain()
         self._generate_floor()
         self.state = 'floor_transition'
         self.transition_timer = 2.0
