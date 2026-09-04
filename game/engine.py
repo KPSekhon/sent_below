@@ -9,7 +9,7 @@ from game.enemies import Enemy, Totem
 from game.dungeon import Floor
 from game.combat import Projectile, DamageNumber, generate_loot, generate_enemy_loot, calculate_damage
 from game.renderer import Renderer
-from ai.enemy_ai import EnemyBrain
+from ai.enemy_ai import EnemyBrain, ACTIONS
 from ai.director import AIDirector
 
 
@@ -521,14 +521,25 @@ class GameEngine:
             if enemy.alive and len(enemy.actions_taken) > 0:
                 post_state = enemy._get_state_vector(self.player,
                     math.sqrt((enemy.x - self.player.x)**2 + (enemy.y - self.player.y)**2))
-                action_idx = ['chase', 'flee', 'attack', 'ranged_attack', 'strafe', 'support_cast', 'idle'].index(
-                    enemy.actions_taken[-1]) if enemy.actions_taken[-1] in ['chase', 'flee', 'attack', 'ranged_attack', 'strafe', 'support_cast', 'idle'] else 6
+                last_action = enemy.actions_taken[-1]
+                action_name = last_action if last_action in ACTIONS else "idle"
+                action_idx = ACTIONS.index(action_name)
 
-                # Reward: positive for damaging player, negative for getting close to death
-                reward = 0
-                if self.player.hp < prev_hp:
-                    reward += (prev_hp - self.player.hp) * 0.1
-                reward -= (1 - enemy.hp / max(enemy.max_hp, 1)) * 0.05
+                # Score the transition with EnemyBrain.compute_reward -- the same
+                # function the offline simulator trains against. The game used to
+                # compute its own ad-hoc reward here, which meant the policy was
+                # optimised for one thing offline and a different thing in-game.
+                reward = EnemyBrain.compute_reward(
+                    enemy_hp_pct=post_state[0],
+                    player_hp_pct=post_state[1],
+                    action=action_name,
+                    prev_enemy_hp_pct=prev_state[0],
+                    prev_player_hp_pct=prev_state[1],
+                    distance=post_state[2],
+                    hit_landed=(action_name in ("attack", "ranged_attack")
+                                and self.player.hp < prev_hp),
+                    damage_taken=(post_state[0] < prev_state[0]),
+                )
 
                 self.enemy_brain.store_experience(prev_state, action_idx, reward, post_state, not enemy.alive)
 
