@@ -31,8 +31,11 @@ COPY config.py .
 # ---------------------------------------------------------------------------
 FROM base AS train
 
-# TensorBoard for experiment tracking
-RUN pip install --no-cache-dir tensorboard>=2.14.0
+# tensorboard, fastapi and uvicorn are already installed by requirements.txt
+# in the base stage. They used to be reinstalled here as
+# `pip install tensorboard>=2.14.0`, where the unquoted `>=` was parsed by the
+# shell as a redirect: pip received a bare, unpinned package name and a file
+# called `=2.14.0` was written into the image.
 
 COPY training/ training/
 COPY game/ game/
@@ -49,8 +52,6 @@ ENTRYPOINT ["python", "-m", "training.train_pipeline"]
 # Stage 3: Model serving API (production deployment)
 # ---------------------------------------------------------------------------
 FROM base AS serve
-
-RUN pip install --no-cache-dir fastapi>=0.104.0 uvicorn>=0.24.0
 
 COPY serving/ serving/
 
