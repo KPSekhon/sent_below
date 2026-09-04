@@ -89,6 +89,9 @@ jobs:
       - name: Test A/B Framework
         run: python ai/ab_testing.py
 
+      - name: Contract tests (training -> serving seam)
+        run: pytest tests/ -v
+
       - name: Test Model Import
         run: |
           python -c "
