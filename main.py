@@ -44,7 +44,9 @@ def main():
     try:
         import pygame
     except ImportError:
-        print("pygame not found. Install with: pip install pygame")
+        # pygame-ce, not pygame: they both provide the `pygame` module and
+        # installing the wrong one on top of the other breaks the import.
+        print("pygame-ce not found. Install with: pip install -r requirements.txt")
         sys.exit(1)
 
     try:
@@ -52,12 +54,12 @@ def main():
         print(f"  PyTorch {torch.__version__} loaded - adaptive AI active")
     except ImportError:
         print("  PyTorch not found - using fallback AI behavior")
-        print("  Install with: pip install torch")
+        print("  Install with: pip install -r requirements.txt")
 
     try:
         import numpy
     except ImportError:
-        print("numpy not found. Install with: pip install numpy")
+        print("numpy not found. Install with: pip install -r requirements.txt")
         sys.exit(1)
 
     print()

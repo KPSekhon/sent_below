@@ -620,6 +620,18 @@ def _upload_to_aws(model_dir: str, dqn_results: Dict, player_results: Dict):
         print("[aws] No model files found to upload")
         return
 
+    # Also publish under a stable `latest` prefix. Deployments reference a fixed
+    # MODEL_S3_PREFIX (see deploy/aws-ecs-task.json) and cannot know the
+    # timestamp of the newest run, so without this the serving container looks
+    # at a prefix nothing ever writes, finds nothing, and quietly starts on
+    # whatever weights are baked into the image.
+    latest_prefix = "models/enemy-brain/latest"
+    for filename in files_to_upload:
+        local_path = os.path.join(model_dir, filename)
+        if os.path.exists(local_path):
+            upload_file_to_s3(local_path, bucket, f"{latest_prefix}/{filename}")
+    print(f"[aws] Published {uploaded} file(s) to s3://{bucket}/{latest_prefix}")
+
     # Register in DynamoDB
     registry_table = os.getenv("MODEL_REGISTRY_TABLE")
     if registry_table:
